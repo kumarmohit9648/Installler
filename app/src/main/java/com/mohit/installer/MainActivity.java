@@ -7,17 +7,28 @@ import android.content.IntentSender;
 import android.content.pm.PackageInstaller;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.mohit.installer.databinding.ActivityMainBinding;
 
+import java.io.ByteArrayOutputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-public class MainActivity extends AppCompatActivity {
+import okhttp3.OkHttpClient;
+import okhttp3.logging.HttpLoggingInterceptor;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
+
+public class MainActivity extends AppCompatActivity implements OnAttachmentDownloadListener {
 
     private static final String TAG = "MainActivity";
     private static final String PACKAGE_INSTALLED_ACTION =
@@ -34,6 +45,31 @@ public class MainActivity extends AppCompatActivity {
 
         // Watch for button clicks.
         binding.install.setOnClickListener(v -> {
+            binding.progressHorizontal.setVisibility(View.VISIBLE);
+            Api api = getClient(MainActivity.this);
+            api.getApk(AppConstant.URL).enqueue(new Callback<ProgressResponseBody>() {
+                @Override
+                public void onResponse(Call<ProgressResponseBody> call, Response<ProgressResponseBody> response) {
+                    String filename = "my_app.apk";
+                    try {
+                        try (FileOutputStream fos = openFileOutput(filename, Context.MODE_PRIVATE)) {
+                            fos.write(readAllBytes(response.body().byteStream()));
+                            fos.flush();
+                        }
+                        String path = getApplicationContext().getFilesDir().toString() + "/my_app.apk";
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    } catch (NullPointerException e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                @Override
+                public void onFailure(Call<ProgressResponseBody> call, Throwable t) {
+                    binding.progressHorizontal.setVisibility(View.GONE);
+                }
+            });
+
             PackageInstaller.Session session = null;
             try {
                 PackageInstaller packageInstaller = getPackageManager().getPackageInstaller();
@@ -59,6 +95,29 @@ public class MainActivity extends AppCompatActivity {
                 throw e;
             }
         });
+    }
+
+    private Api getClient(OnAttachmentDownloadListener progressListener) {
+        HttpLoggingInterceptor interceptor = new HttpLoggingInterceptor();
+        interceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
+        OkHttpClient client = new OkHttpClient.Builder()
+                .addInterceptor(interceptor)
+                .addInterceptor(chain -> {
+                    if (progressListener == null) return chain.proceed(chain.request());
+
+                    okhttp3.Response originalResponse = chain.proceed(chain.request());
+                    return originalResponse.newBuilder()
+                            .body(new ProgressResponseBody(originalResponse.body(), progressListener))
+                            .build();
+                })
+                .build();
+
+
+        return new Retrofit.Builder()
+                .baseUrl("https://drive.google.com/")
+                .addConverterFactory(GsonConverterFactory.create())
+                .client(client)
+                .build().create(Api.class);
     }
 
     private void addApkToInstallSession(String assetName, PackageInstaller.Session session)
@@ -110,5 +169,51 @@ public class MainActivity extends AppCompatActivity {
                             Toast.LENGTH_SHORT).show();
             }
         }
+    }
+
+    public static byte[] readAllBytes(InputStream inputStream) throws IOException {
+        final int bufLen = 4 * 0x400; // 4KB
+        byte[] buf = new byte[bufLen];
+        int readLen;
+        IOException exception = null;
+
+        try {
+            try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+                while ((readLen = inputStream.read(buf, 0, bufLen)) != -1)
+                    outputStream.write(buf, 0, readLen);
+
+                return outputStream.toByteArray();
+            }
+        } catch (IOException e) {
+            exception = e;
+            throw e;
+        } finally {
+            if (exception == null) inputStream.close();
+            else try {
+                inputStream.close();
+            } catch (IOException e) {
+                exception.addSuppressed(e);
+            }
+        }
+    }
+
+    @Override
+    public void onAttachmentDownloadedSuccess() {
+
+    }
+
+    @Override
+    public void onAttachmentDownloadedError() {
+
+    }
+
+    @Override
+    public void onAttachmentDownloadedFinished() {
+
+    }
+
+    @Override
+    public void onAttachmentDownloadUpdate(int percent) {
+        binding.progressHorizontal.setProgress(percent);
     }
 }
