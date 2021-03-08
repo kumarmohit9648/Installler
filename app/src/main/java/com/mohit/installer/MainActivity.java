@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.IntentSender;
 import android.content.pm.PackageInstaller;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -18,10 +19,12 @@ import java.io.OutputStream;
 
 public class MainActivity extends AppCompatActivity {
 
+    private static final String TAG = "MainActivity";
     private static final String PACKAGE_INSTALLED_ACTION =
             "com.example.android.apis.content.SESSION_API_PACKAGE_INSTALLED";
 
     private ActivityMainBinding binding;
+    private int count;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -38,7 +41,7 @@ public class MainActivity extends AppCompatActivity {
                         PackageInstaller.SessionParams.MODE_FULL_INSTALL);
                 int sessionId = packageInstaller.createSession(params);
                 session = packageInstaller.openSession(sessionId);
-                addApkToInstallSession("Videoder_14.4.2.apk", session);
+                addApkToInstallSession("my_app.apk", session);
                 // Create an install status receiver.
                 Context context = MainActivity.this;
                 Intent intent = new Intent(context, MainActivity.class);
@@ -66,8 +69,10 @@ public class MainActivity extends AppCompatActivity {
              InputStream is = getAssets().open(assetName)) {
             byte[] buffer = new byte[16384];
             int n;
+            count = 1;
             while ((n = is.read(buffer)) >= 0) {
                 packageInSession.write(buffer, 0, n);
+                Log.d(TAG, "addApkToInstallSession: " + count++);
             }
         }
     }
