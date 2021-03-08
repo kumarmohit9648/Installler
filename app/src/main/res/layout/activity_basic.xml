@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:padding="4dip"
+    tools:context=".BasicActivity">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="40dp"
+        android:gravity="center"
+        android:paddingBottom="40dp"
+        android:text="Demonstrates using the INSTALL_PACKAGE Intent to install an application."
+        android:textAppearance="?android:attr/textAppearanceMedium" />
+
+    <Button
+        android:id="@+id/unknown_source"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Unknown Source" />
+
+    <Button
+        android:id="@+id/my_source"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="My Source" />
+
+    <Button
+        android:id="@+id/uninstall"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Uninstall" />
+
+    <Button
+        android:id="@+id/uninstall_result"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Uninstall w/Result" />
+
+</LinearLayout>

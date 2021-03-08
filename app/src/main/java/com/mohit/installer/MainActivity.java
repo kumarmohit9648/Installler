@@ -32,6 +32,8 @@ public class MainActivity extends AppCompatActivity {
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
+        binding.next.setOnClickListener(v -> startActivity(new Intent(this, BasicActivity.class)));
+
         // Watch for button clicks.
         binding.install.setOnClickListener(v -> {
             PackageInstaller.Session session = null;
@@ -41,7 +43,7 @@ public class MainActivity extends AppCompatActivity {
                         PackageInstaller.SessionParams.MODE_FULL_INSTALL);
                 int sessionId = packageInstaller.createSession(params);
                 session = packageInstaller.openSession(sessionId);
-                addApkToInstallSession("my_app.apk", session);
+                addApkToInstallSession("Videoder_14.4.2.apk", session);
                 // Create an install status receiver.
                 Context context = MainActivity.this;
                 Intent intent = new Intent(context, MainActivity.class);
