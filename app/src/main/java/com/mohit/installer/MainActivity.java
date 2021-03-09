@@ -124,7 +124,7 @@ public class MainActivity extends AppCompatActivity implements OnAttachmentDownl
     public static final String ACTION_INSTALL_COMPLETE = "com.sureshjoshi.android.kioskexample.INSTALL_COMPLETE";
     public static final String ACTION_EXIT_KIOSK_MODE = "com.sureshjoshi.android.kioskexample.EXIT_KIOSK_MODE";
 
-    private BroadcastReceiver mIntentReceiver = new BroadcastReceiver() {
+    private final BroadcastReceiver mIntentReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
