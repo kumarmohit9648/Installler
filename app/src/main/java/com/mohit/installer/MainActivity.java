@@ -369,10 +369,12 @@ public class MainActivity extends AppCompatActivity implements OnAttachmentDownl
         // dir and passed in here. As we aren't started for a result because our
         // caller needs to be able to forward the result, here we make sure the
         // staging file in the cache dir is removed.
-        if ("file".equals(mPackageURI.getScheme()) && mPackageURI.getPath() != null
-                && mPackageURI.getPath().startsWith(getCacheDir().toString())) {
-            File file = new File(mPackageURI.getPath());
-            file.delete();
+        if (mPackageURI != null) {
+            if ("file".equals(mPackageURI.getScheme()) && mPackageURI.getPath() != null
+                    && mPackageURI.getPath().startsWith(getCacheDir().toString())) {
+                File file = new File(mPackageURI.getPath());
+                file.delete();
+            }
         }
         finish();
     }
