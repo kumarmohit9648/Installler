@@ -4,5 +4,5 @@ public interface OnAttachmentDownloadListener {
     void onAttachmentDownloadedSuccess();
     void onAttachmentDownloadedError();
     void onAttachmentDownloadedFinished();
-    void onAttachmentDownloadUpdate(int percent);
+    void onAttachmentDownloadUpdate(float percent);
 }

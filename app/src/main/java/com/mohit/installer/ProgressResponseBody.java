@@ -52,7 +52,7 @@ public class ProgressResponseBody extends ResponseBody {
                 float percent = bytesRead == -1 ? 100f : (((float) totalBytesRead / (float) responseBody.contentLength()) * 100);
 
                 if (progressListener != null)
-                    progressListener.onAttachmentDownloadUpdate((int) percent);
+                    progressListener.onAttachmentDownloadUpdate(percent);
 
                 return bytesRead;
             }
