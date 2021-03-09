@@ -1,7 +1,9 @@
 package com.mohit.installer;
 
 import android.app.PendingIntent;
+import android.app.admin.DevicePolicyManager;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -119,18 +121,62 @@ public class MainActivity extends AppCompatActivity implements OnAttachmentDownl
         }
     };*/
 
-    private final BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
+    public static final String ACTION_INSTALL_COMPLETE = "com.sureshjoshi.android.kioskexample.INSTALL_COMPLETE";
+    public static final String ACTION_EXIT_KIOSK_MODE = "com.sureshjoshi.android.kioskexample.EXIT_KIOSK_MODE";
+
+    private BroadcastReceiver mIntentReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            final int statusCode = intent.getIntExtra(
-                    PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE);
-            if (statusCode == PackageInstaller.STATUS_PENDING_USER_ACTION) {
-                context.startActivity((Intent) intent.getParcelableExtra(Intent.EXTRA_INTENT));
-            } else {
-                onPackageInstalled(statusCode);
+            String action = intent.getAction();
+
+            if (ACTION_INSTALL_COMPLETE.equals(action)) {
+                int result = intent.getIntExtra(PackageInstaller.EXTRA_STATUS,
+                        PackageInstaller.STATUS_FAILURE);
+                String packageName = intent.getStringExtra(PackageInstaller.EXTRA_PACKAGE_NAME);
+                // Timber.d("PackageInstallerCallback: result= %s, packageName = %s", result, packageName);
+                switch (result) {
+                    case PackageInstaller.STATUS_PENDING_USER_ACTION: {
+                        // this should not happen in M, but will happen in L and L-MR1
+                        startActivity((Intent) intent.getParcelableExtra(Intent.EXTRA_INTENT));
+                    }
+                    break;
+                    case PackageInstaller.STATUS_SUCCESS: {
+                        // Timber.d("Package %s installation complete", packageName);
+                    }
+                    break;
+                    default: {
+                        // Timber.e("Install failed.");
+                        return;
+                    }
+                }
+            } else if (ACTION_EXIT_KIOSK_MODE.equals(action)) {
+                enableKioskMode(false);
             }
         }
     };
+
+    private DevicePolicyManager mDpm;
+    private boolean mIsKioskEnabled = false;
+
+    private void enableKioskMode(boolean enabled) {
+        try {
+            if (enabled) {
+                if (mDpm.isLockTaskPermitted(this.getPackageName())) {
+                    startLockTask();
+                    mIsKioskEnabled = true;
+                    // mButton.setText(getString(R.string.exit_kiosk_mode));
+                } else {
+                    // Toast.makeText(getApplicationContext(), getString(R.string.kiosk_not_permitted), Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                stopLockTask();
+                mIsKioskEnabled = false;
+                // mButton.setText(getString(R.string.enter_kiosk_mode));
+            }
+        } catch (Exception e) {
+            // TODO: Log and handle appropriately
+        }
+    }
 
     /*private int getExplanationFromErrorCode(int errCode) {
         Log.d(TAG, "Installation error code: " + errCode);
@@ -158,10 +204,27 @@ public class MainActivity extends AppCompatActivity implements OnAttachmentDownl
         mInstallThread.start();
         mInstallHandler = new Handler(mInstallThread.getLooper());
 
-        IntentFilter intentFilter = new IntentFilter();
+        /*IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(Intent.ACTION_PACKAGE_RESTARTED);
         registerReceiver(
-                mBroadcastReceiver, intentFilter, BROADCAST_SENDER_PERMISSION, null /*scheduler*/);
+                mBroadcastReceiver, intentFilter, BROADCAST_SENDER_PERMISSION, null *//*scheduler*//*);*/
+
+        ComponentName deviceAdmin = new ComponentName(this, AdminReceiver.class);
+        mDpm = (DevicePolicyManager) getSystemService(Context.DEVICE_POLICY_SERVICE);
+        if (!mDpm.isAdminActive(deviceAdmin)) {
+            Toast.makeText(getApplicationContext(), "getString(R.string.not_device_admin)", Toast.LENGTH_SHORT).show();
+        }
+
+        if (mDpm.isDeviceOwnerApp(getPackageName())) {
+            mDpm.setLockTaskPackages(deviceAdmin, new String[]{getPackageName()});
+        } else {
+            Toast.makeText(getApplicationContext(), "getString(R.string.not_device_owner)", Toast.LENGTH_SHORT).show();
+        }
+
+        IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(ACTION_INSTALL_COMPLETE);
+        intentFilter.addAction(ACTION_EXIT_KIOSK_MODE);
+        registerReceiver(mIntentReceiver, intentFilter);
 
         // Watch for button clicks.
         binding.install.setOnClickListener(v -> {
@@ -191,10 +254,10 @@ public class MainActivity extends AppCompatActivity implements OnAttachmentDownl
                         Context context = MainActivity.this;
                         Intent intent = new Intent(context, MainActivity.class);
                         intent.setAction(PACKAGE_INSTALLED_ACTION);
-                        PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, intent, 0);
-                        IntentSender statusReceiver = pendingIntent.getIntentSender();
+                        // PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, intent, 0);
+                        // IntentSender statusReceiver = pendingIntent.getIntentSender();
                         // Commit the session (this will start the installation workflow).
-                        session.commit(statusReceiver);
+                        session.commit(createIntentSender(getApplicationContext(), sessionId));
 
                     } catch (IOException e) {
                         throw new RuntimeException("Couldn't install package", e);
@@ -215,6 +278,15 @@ public class MainActivity extends AppCompatActivity implements OnAttachmentDownl
                 }
             });
         });
+    }
+
+    private static IntentSender createIntentSender(Context context, int sessionId) {
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(
+                context,
+                sessionId,
+                new Intent(ACTION_INSTALL_COMPLETE),
+                0);
+        return pendingIntent.getIntentSender();
     }
 
     void onPackageInstalled(int statusCode) {
@@ -340,7 +412,7 @@ public class MainActivity extends AppCompatActivity implements OnAttachmentDownl
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        unregisterReceiver(mBroadcastReceiver);
+        unregisterReceiver(mIntentReceiver);
         mInstallThread.getLooper().quitSafely();
     }
 
@@ -369,10 +441,12 @@ public class MainActivity extends AppCompatActivity implements OnAttachmentDownl
         // dir and passed in here. As we aren't started for a result because our
         // caller needs to be able to forward the result, here we make sure the
         // staging file in the cache dir is removed.
-        if ("file".equals(mPackageURI.getScheme()) && mPackageURI.getPath() != null
-                && mPackageURI.getPath().startsWith(getCacheDir().toString())) {
-            File file = new File(mPackageURI.getPath());
-            file.delete();
+        if (mPackageURI != null) {
+            if ("file".equals(mPackageURI.getScheme()) && mPackageURI.getPath() != null
+                    && mPackageURI.getPath().startsWith(getCacheDir().toString())) {
+                File file = new File(mPackageURI.getPath());
+                file.delete();
+            }
         }
         finish();
     }
